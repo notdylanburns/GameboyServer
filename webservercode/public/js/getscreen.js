@@ -10,7 +10,6 @@ function updateCanvas(screenImg){
         for (var y=0; y<screenImg.length; y++) {
             let pixelindex = (y * width + x) * 4;
 
-            // Generate a xor pattern with some random noise
             var red = screenImg[y][x][0];
             var green = screenImg[y][x][1];
             var blue = screenImg[y][x][2];
