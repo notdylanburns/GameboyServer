@@ -7,18 +7,7 @@ import zlib
 passphrase = "rickandmortyseason5"
 validkeys = []
 
-filename = "testroms/gambatte/enable_display/frame0_m1stat_1_dmg08_cgb04c_out80.gbc"
-pyboy = PyBoy(filename, window_type="headless")
-pyboy.set_emulation_speed(1)
-
-screen = pyboy.botsupport_manager().screen()
-images = []
-
-for i in range(100):
-    images.append(screen.screen_ndarray())
-    pyboy.tick()
-
-pyboy.stop()
+pyboys = []
 
 async def invalidRequest(websocket):
     await websocket.send("Invalid Request")
@@ -49,9 +38,18 @@ async def runCommand(websocket, cmd):
         #np.save(np_bytes, testimage, allow_pickle=True)
         #np_bytes = np_bytes.getvalue()
         #await websocket.send(np_bytes)
-        for image in images:
-            screen = zlib.compress(json.dumps(image.tolist()).encode('utf-8'), level=-1)
-            await websocket.send(screen)
+        filename = "testroms/gambatte/enable_display/frame0_m1stat_1_dmg08_cgb04c_out80.gbc"
+        pyboy = PyBoy(filename, window_type="headless", disable_renderer=True)
+        pyboy.set_emulation_speed(1)
+        screen = pyboy.botsupport_manager().screen()
+
+        for i in range(200):
+            image = screen.screen_ndarray()
+            screenBuffer = zlib.compress(json.dumps(image.tolist()).encode('utf-8'), level=-1)
+            await websocket.send(screenBuffer)
+            pyboy.tick()
+        pyboy.stop()
+        await websocket.send("done")
 
 
 async def server(websocket, path):
@@ -82,7 +80,7 @@ async def server(websocket, path):
     
 
 
-start_server = websockets.serve(server, "localhost", 8765)
+start_server = websockets.serve(server, "192.168.1.114", 8765)
 
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
