@@ -38,12 +38,12 @@ async def runCommand(websocket, cmd):
         #np.save(np_bytes, testimage, allow_pickle=True)
         #np_bytes = np_bytes.getvalue()
         #await websocket.send(np_bytes)
-        filename = "testroms/gambatte/enable_display/frame0_m1stat_1_dmg08_cgb04c_out80.gbc"
+        filename = "testroms/pokemongold.gbc"
         pyboy = PyBoy(filename, window_type="headless", disable_renderer=True)
         pyboy.set_emulation_speed(1)
         screen = pyboy.botsupport_manager().screen()
 
-        for i in range(200):
+        for i in range(1000):
             image = screen.screen_ndarray()
             screenBuffer = zlib.compress(json.dumps(image.tolist()).encode('utf-8'), level=-1)
             await websocket.send(screenBuffer)
