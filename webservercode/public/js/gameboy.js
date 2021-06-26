@@ -1,6 +1,20 @@
-var fpsInterval, now, then, elapsed;
-var fps = 30;
+let fpsInterval, now, then, elapsed;
+let fps = 30;
 let stopConnection = false;
+let keyBuffer = [];
+const keyDict = {
+    "ArrowUp": "UP", 
+    "ArrowLeft": "LEFT", 
+    "ArrowRight": "RIGHT", 
+    "ArrowDown": "DOWN", 
+    "a": "A", 
+    "b": "B", 
+    " ": "SELECT", 
+    "Enter": "START"
+}
+const charList = ["ArrowUp", "ArrowLeft", "ArrowRight", "ArrowDown", "a", "b", " ", "Enter"];
+
+let lastKeyTime = Date.now();
 //let frametimes = [];
 
 // function avgFrametime() {
@@ -15,6 +29,10 @@ function killConnection() {
     stopConnection = true;
 }
 
+function pressStart() {
+    startButton = true;
+}
+
 //Kill connection with server before user leaves
 window.onbeforeunload = function() {
     killConnection();
@@ -24,6 +42,37 @@ window.addEventListener('beforeunload', function (e) {
     e.preventDefault();
     killConnection();
     return e.returnValue = "Are you sure you want to exit?"
+})
+
+document.addEventListener('keydown', e => {
+    if (charList.includes(e.key)) {
+        const currentTime = Date.now();
+        let key = keyDict[e.key] + "_PRESS";
+        let removekey = keyDict[e.key] + "_RELEASE"
+
+        if (keyBuffer.includes(removekey)) {
+            keyBuffer.splice(keyBuffer.indexOf(removekey), 1);
+        }
+    
+        if (!(currentTime - lastKeyTime > 500) && !keyBuffer.includes(key)){
+            keyBuffer.push(key);
+        }
+        lastKeyTime = currentTime;
+    }
+})
+
+document.addEventListener('keyup', e => {
+    if (charList.includes(e.key)){
+        let removekey = keyDict[e.key] + "_PRESS";
+        let key = keyDict[e.key] + "_RELEASE";
+        if (keyBuffer.includes(removekey)) {
+            keyBuffer.splice(keyBuffer.indexOf(removekey), 1);
+
+            if (!keyBuffer.includes(key)){
+                keyBuffer.push(key);
+            }
+        }
+    }
 })
 
 function updateCanvas(screenImg){
@@ -40,9 +89,9 @@ function updateCanvas(screenImg){
     let height = screenImg.length;
     let imageData = ctxTemp.createImageData(width,height);
     
-    for (var i=0; i<imageData.data.length; i+=4) {
+    for (let i=0; i<imageData.data.length; i+=4) {
         let x = (i/4)%160;
-        var y = Math.floor(i/640);
+        let y = Math.floor(i/640);
         imageData.data[i] = screenImg[y][x][0];
         imageData.data[i+1] = screenImg[y][x][1];
         imageData.data[i+2] = screenImg[y][x][2];
@@ -71,7 +120,6 @@ function getScreen() {
     let stage = 1
     let screenImg;
     let firstframe = true;
-    let frames = 0;
 
     socket.addEventListener('open', function (event) {
         socket.send(JSON.stringify(packet));
@@ -97,6 +145,14 @@ function getScreen() {
                     socket.send(JSON.stringify(packet))
                     stage += 1
                     break
+                }
+                if (keyBuffer.length > 0) {
+                    console.log(keyBuffer);
+                    packet["command"] = "sendInput";
+                    packet["buttons"] = keyBuffer;
+                    socket.send(JSON.stringify(packet))
+                    packet["command"] = "getFrame";
+                    delete packet["buttons"];
                 }
                 if (firstframe) {
                     fpsInterval = 1000 / fps;

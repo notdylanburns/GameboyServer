@@ -1,6 +1,6 @@
 import asyncio, websockets, threading, json, hashlib, random, string, time, math
 import pyboy
-from pyboy import PyBoy
+from pyboy import PyBoy, WindowEvent
 import numpy as np
 from io import BytesIO
 import zlib
@@ -10,6 +10,24 @@ validkeys = []
 
 pyboys = {}
 screens = {}
+buttons = {
+    "START_PRESS": WindowEvent.PRESS_BUTTON_START,
+    "SELECT_PRESS": WindowEvent.PRESS_BUTTON_SELECT,
+    "A_PRESS": WindowEvent.PRESS_BUTTON_A,
+    "B_PRESS": WindowEvent.PRESS_BUTTON_B,
+    "UP_PRESS": WindowEvent.PRESS_ARROW_UP,
+    "DOWN_PRESS": WindowEvent.PRESS_ARROW_DOWN,
+    "LEFT_PRESS": WindowEvent.PRESS_ARROW_LEFT,
+    "RIGHT_PRESS": WindowEvent.PRESS_ARROW_RIGHT,
+    "START_RELEASE": WindowEvent.RELEASE_BUTTON_START,
+    "SELECT_RELEASE": WindowEvent.RELEASE_BUTTON_SELECT,
+    "A_RELEASE": WindowEvent.RELEASE_BUTTON_A,
+    "B_RELEASE": WindowEvent.RELEASE_BUTTON_B,
+    "UP_RELEASE": WindowEvent.RELEASE_ARROW_UP,
+    "DOWN_RELEASE": WindowEvent.RELEASE_ARROW_DOWN,
+    "LEFT_RELEASE": WindowEvent.RELEASE_ARROW_LEFT,
+    "RIGHT_RELEASE": WindowEvent.RELEASE_ARROW_RIGHT
+}
 
 filename = "testroms/pokemongold.gbc"
 
@@ -46,10 +64,15 @@ async def runCommand(websocket, cmd):
         screens[cmd["authentication"]] = pyboys[cmd["authentication"]].botsupport_manager().screen()
         await websocket.send("PyBoy Instance Created")
     elif cmd["command"] == "getFrame":
+        pyboys[cmd["authentication"]].tick()
         image = screens[cmd["authentication"]].screen_ndarray()
         screenBuffer = zlib.compress(json.dumps(image.tolist()).encode('utf-8'), level=-1)
         await websocket.send(screenBuffer)
-        pyboys[cmd["authentication"]].tick()
+    elif cmd["command"] == "sendInput":
+        for button in cmd["buttons"]:
+            pyboys[cmd["authentication"]].send_input(buttons[button])
+        #await websocket.send("Buttons Pressed")
+
 
 
 async def server(websocket, path):
