@@ -2,10 +2,11 @@
     <head>
         <title>GameBoy</title>
         <script src="js/pako.js"></script>
-        <script src="js/getscreen.js"></script>
+        <script src="js/gameboy.js"></script>
     </head>
-    <body onload="getScreen()">
+    <body onload="getScreen();">
         <p>Hi</p>
         <canvas id="gameboyScreen" width="160" height="144" style="border:1px solid #000000;"></canvas>
+        <button type="button" onclick="killConnection();">Stop</button>
     </body>
 </html>

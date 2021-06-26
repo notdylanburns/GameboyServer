@@ -1,4 +1,5 @@
 import asyncio, websockets, threading, json, hashlib, random, string, time, math
+import pyboy
 from pyboy import PyBoy
 import numpy as np
 from io import BytesIO
@@ -7,7 +8,10 @@ import zlib
 passphrase = "rickandmortyseason5"
 validkeys = []
 
-pyboys = []
+pyboys = {}
+screens = {}
+
+filename = "testroms/pokemongold.gbc"
 
 async def invalidRequest(websocket):
     await websocket.send("Invalid Request")
@@ -30,26 +34,22 @@ def deAuthKey(key):
             validkeys.remove(key)
 
 async def runCommand(websocket, cmd):
-    if cmd["command"] == "deauthenticate":
+    if cmd["command"] == "stop":
+        pyboys[cmd["authentication"]].stop()
+        pyboys.pop(cmd["authentication"])
+        screens.pop(cmd["authentication"])
         deAuthKey(cmd["authentication"])
         await websocket.send("Key Invalidated")
     elif cmd["command"] == "start":
-        #np_bytes = BytesIO()
-        #np.save(np_bytes, testimage, allow_pickle=True)
-        #np_bytes = np_bytes.getvalue()
-        #await websocket.send(np_bytes)
-        filename = "testroms/pokemongold.gbc"
-        pyboy = PyBoy(filename, window_type="headless", disable_renderer=True)
-        pyboy.set_emulation_speed(1)
-        screen = pyboy.botsupport_manager().screen()
-
-        for i in range(1000):
-            image = screen.screen_ndarray()
-            screenBuffer = zlib.compress(json.dumps(image.tolist()).encode('utf-8'), level=-1)
-            await websocket.send(screenBuffer)
-            pyboy.tick()
-        pyboy.stop()
-        await websocket.send("done")
+        pyboys[cmd["authentication"]] = PyBoy(filename, window_type="headless", disable_renderer=True)
+        pyboys[cmd["authentication"]].set_emulation_speed(1)
+        screens[cmd["authentication"]] = pyboys[cmd["authentication"]].botsupport_manager().screen()
+        await websocket.send("PyBoy Instance Created")
+    elif cmd["command"] == "getFrame":
+        image = screens[cmd["authentication"]].screen_ndarray()
+        screenBuffer = zlib.compress(json.dumps(image.tolist()).encode('utf-8'), level=-1)
+        await websocket.send(screenBuffer)
+        pyboys[cmd["authentication"]].tick()
 
 
 async def server(websocket, path):
@@ -62,6 +62,9 @@ async def server(websocket, path):
             if request["command"] == "close":
                 valid = True
                 if len(request["authentication"]) > 0:
+                    pyboys[request["authentication"]].stop()
+                    pyboys.pop(request["authentication"])
+                    screens.pop(request["authentication"])
                     deAuthKey(request["authentication"])
                 break
             #authenticate commands do not require a valid key

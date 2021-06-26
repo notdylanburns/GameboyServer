@@ -1,5 +1,6 @@
 var fpsInterval, now, then, elapsed;
 var fps = 30;
+let stopConnection = false;
 //let frametimes = [];
 
 // function avgFrametime() {
@@ -9,6 +10,21 @@ var fps = 30;
 //      }
 //      return total/frametimes.length;
 // }
+
+function killConnection() {
+    stopConnection = true;
+}
+
+//Kill connection with server before user leaves
+window.onbeforeunload = function() {
+    killConnection();
+}
+
+window.addEventListener('beforeunload', function (e) {
+    e.preventDefault();
+    killConnection();
+    return e.returnValue = "Are you sure you want to exit?"
+})
 
 function updateCanvas(screenImg){
     //console.log("Drawing Image...")
@@ -55,6 +71,7 @@ function getScreen() {
     let stage = 1
     let screenImg;
     let firstframe = true;
+    let frames = 0;
 
     socket.addEventListener('open', function (event) {
         socket.send(JSON.stringify(packet));
@@ -69,8 +86,14 @@ function getScreen() {
                 stage += 1
                 break
             case 2:
-                if (event.data == "done") {
-                    packet["command"] = "deauthenticate"
+                packet["command"] = "getFrame"
+                console.log("Connection Created")
+                socket.send(JSON.stringify(packet))
+                stage += 1
+                break
+            case 3:
+                if (stopConnection) {
+                    packet["command"] = "stop"
                     socket.send(JSON.stringify(packet))
                     stage += 1
                     break
@@ -94,6 +117,7 @@ function getScreen() {
                             screenImg = JSON.parse(new TextDecoder().decode(pako.inflate(reader.result)))
                             //console.log("Frame Received")
                             updateCanvas(screenImg)
+                            frames++
                             //frametimes.push(Date.now());
                             //console.log(screenImg)
                             //console.log(screenImg.length)
@@ -102,9 +126,10 @@ function getScreen() {
                         break
                     }
                 }
+                socket.send(JSON.stringify(packet))
                 //frametimes.push(Date.now())
                 break
-            case 3:
+            case 4:
                 packet["authentication"] = ""
                 packet["command"] = "close"
                 socket.send(JSON.stringify(packet))
