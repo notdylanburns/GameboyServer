@@ -2,6 +2,7 @@ let fpsInterval, now, then, elapsed;
 let fps = 30;
 let stopConnection = false;
 let keyBuffer = [];
+let password;
 const keyDict = {
     "ArrowUp": "UP", 
     "ArrowLeft": "LEFT", 
@@ -86,8 +87,18 @@ function updateCanvas(screenImg){
 
     ctxTemp.putImageData(imageData, 0, 0);
 
-    canvas.width = Math.floor(window.innerWidth / tempCanvas.width) * tempCanvas.width;
-    canvas.height = Math.floor(window.innerHeight / tempCanvas.height) * tempCanvas.height;
+    let ratioX = window.innerWidth / width;
+    let ratioY = window.innerHeight / height;
+    let ratio;
+
+    if (ratioX < ratioY) {
+        ratio = Math.floor(ratioX);
+    } else {
+        ratio = Math.floor(ratioY);
+    }
+
+    canvas.width = ratio * tempCanvas.width;
+    canvas.height = ratio * tempCanvas.height;
 
     ctx.mozImageSmoothingEnabled = false;
     ctx.webkitImageSmoothingEnabled = false;
@@ -97,15 +108,17 @@ function updateCanvas(screenImg){
 }
 
 function getRoms() {
+    password = window.prompt("Enter the password for the GameBoy Server", "");
     const romSocket = new WebSocket('ws://192.168.1.114:8765')
 
     let packet = {
-        "authentication": "rickandmortyseason5",
+        "authentication": password,
         "command":  "authenticate"
     }
 
     let stage = 1;
     let roms;
+    let restart = false;
 
     function updateDropDown() {
         let dropdown = document.getElementById("roms");
@@ -123,6 +136,11 @@ function getRoms() {
     romSocket.addEventListener('message', function(event) {
         switch (stage) {
             case 1:
+                if (event.data == "Invalid Request") {
+                    restart = true;
+                    window.alert("Invalid Password");
+                    break
+                }
                 packet["authentication"] = event.data
                 packet["command"] = "getRoms"
                 romSocket.send(JSON.stringify(packet))
@@ -136,13 +154,17 @@ function getRoms() {
                 romSocket.close()
                 break
         }
+        if (restart) {
+            restart = false;
+            getRoms();
+        }
     })
 }
 
 function startGameBoy() {
     let socket = new WebSocket('ws://192.168.1.114:8765')
     let packet = {
-        "authentication": "rickandmortyseason5",
+        "authentication": password,
         "command":  "authenticate"
     }
 
@@ -150,6 +172,7 @@ function startGameBoy() {
     let screenImg;
     let firstframe = true;
     let rom = document.getElementById("roms").value;
+    let restart = false;
 
     document.getElementById("romDropdown").setAttribute("hidden", "");
     document.getElementById("gameBoyCanvas").removeAttribute("hidden");
@@ -161,6 +184,11 @@ function startGameBoy() {
     socket.addEventListener('message', function (event) {
         switch (stage) {
             case 1:
+                if (event.data == "Invalid Request") {
+                    restart = true;
+                    window.alert("Invalid Password");
+                    break;
+                }
                 packet["authentication"] = event.data
                 packet["rom"] = rom;
                 packet["command"] = "start"
@@ -185,7 +213,6 @@ function startGameBoy() {
                 if (keyBuffer.length > 0) {
                     packet["command"] = "sendInput";
                     packet["buttons"] = keyBuffer;
-                    console.log(keyBuffer);
                     socket.send(JSON.stringify(packet))
                     keyBuffer = [];
                     packet["command"] = "getFrame";
@@ -229,6 +256,10 @@ function startGameBoy() {
                 socket.close()
                 stage += 1
                 break
+        }
+        if (restart) {
+            restart = false;
+            startGameBoy();
         }
     })
 }
