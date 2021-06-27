@@ -2,3 +2,4 @@ testroms/*
 *.ipynb
 webservercode/node_modules/*
 roms/*
+__pycache__/*
