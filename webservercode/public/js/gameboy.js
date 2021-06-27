@@ -14,7 +14,6 @@ const keyDict = {
 }
 const charList = ["ArrowUp", "ArrowLeft", "ArrowRight", "ArrowDown", "a", "b", " ", "Enter"];
 
-let lastKeyTime = Date.now();
 //let frametimes = [];
 
 // function avgFrametime() {
@@ -27,10 +26,8 @@ let lastKeyTime = Date.now();
 
 function killConnection() {
     stopConnection = true;
-}
-
-function pressStart() {
-    startButton = true;
+    document.getElementById("gameBoyCanvas").setAttribute("hidden", "");
+    document.getElementById("romDropdown").removeAttribute("hidden");
 }
 
 //Kill connection with server before user leaves
@@ -46,31 +43,20 @@ window.addEventListener('beforeunload', function (e) {
 
 document.addEventListener('keydown', e => {
     if (charList.includes(e.key)) {
-        const currentTime = Date.now();
         let key = keyDict[e.key] + "_PRESS";
-        let removekey = keyDict[e.key] + "_RELEASE"
-
-        if (keyBuffer.includes(removekey)) {
-            keyBuffer.splice(keyBuffer.indexOf(removekey), 1);
-        }
     
-        if (!(currentTime - lastKeyTime > 500) && !keyBuffer.includes(key)){
+        if (!keyBuffer.includes(key)){
             keyBuffer.push(key);
         }
-        lastKeyTime = currentTime;
     }
 })
 
 document.addEventListener('keyup', e => {
     if (charList.includes(e.key)){
-        let removekey = keyDict[e.key] + "_PRESS";
         let key = keyDict[e.key] + "_RELEASE";
-        if (keyBuffer.includes(removekey)) {
-            keyBuffer.splice(keyBuffer.indexOf(removekey), 1);
 
-            if (!keyBuffer.includes(key)){
-                keyBuffer.push(key);
-            }
+        if (!keyBuffer.includes(key)){
+            keyBuffer.push(key);
         }
     }
 })
@@ -100,8 +86,8 @@ function updateCanvas(screenImg){
 
     ctxTemp.putImageData(imageData, 0, 0);
 
-    canvas.width = 160 * 4;
-    canvas.height = 144 * 4;
+    canvas.width = Math.floor(window.innerWidth / tempCanvas.width) * tempCanvas.width;
+    canvas.height = Math.floor(window.innerHeight / tempCanvas.height) * tempCanvas.height;
 
     ctx.mozImageSmoothingEnabled = false;
     ctx.webkitImageSmoothingEnabled = false;
@@ -110,8 +96,51 @@ function updateCanvas(screenImg){
     ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
 }
 
-function getScreen() {
-    const socket = new WebSocket('ws://192.168.1.114:8765')
+function getRoms() {
+    const romSocket = new WebSocket('ws://192.168.1.114:8765')
+
+    let packet = {
+        "authentication": "rickandmortyseason5",
+        "command":  "authenticate"
+    }
+
+    let stage = 1;
+    let roms;
+
+    function updateDropDown() {
+        let dropdown = document.getElementById("roms");
+        let html = "";
+        for (let i = 0; i < roms.length; i++) {
+            html = html.concat(`<option value="${roms[i]}">${roms[i]}</option>`)
+        }
+        dropdown.innerHTML = html;
+    }
+
+    romSocket.addEventListener('open', function(event) {
+        romSocket.send(JSON.stringify(packet))
+    })
+
+    romSocket.addEventListener('message', function(event) {
+        switch (stage) {
+            case 1:
+                packet["authentication"] = event.data
+                packet["command"] = "getRoms"
+                romSocket.send(JSON.stringify(packet))
+                stage += 1
+                break
+            case 2:
+                roms = JSON.parse(event.data)
+                updateDropDown();
+                packet["command"] = "close"
+                romSocket.send(JSON.stringify(packet))
+                romSocket.close()
+                break
+        }
+    })
+}
+
+function startGameBoy() {
+    let socket = new WebSocket('ws://192.168.1.114:8765')
     let packet = {
         "authentication": "rickandmortyseason5",
         "command":  "authenticate"
@@ -120,6 +149,10 @@ function getScreen() {
     let stage = 1
     let screenImg;
     let firstframe = true;
+    let rom = document.getElementById("roms").value;
+
+    document.getElementById("romDropdown").setAttribute("hidden", "");
+    document.getElementById("gameBoyCanvas").removeAttribute("hidden");
 
     socket.addEventListener('open', function (event) {
         socket.send(JSON.stringify(packet));
@@ -129,8 +162,10 @@ function getScreen() {
         switch (stage) {
             case 1:
                 packet["authentication"] = event.data
+                packet["rom"] = rom;
                 packet["command"] = "start"
                 socket.send(JSON.stringify(packet))
+                delete packet["rom"]
                 stage += 1
                 break
             case 2:
@@ -143,14 +178,16 @@ function getScreen() {
                 if (stopConnection) {
                     packet["command"] = "stop"
                     socket.send(JSON.stringify(packet))
+                    stopConnection = false;
                     stage += 1
                     break
                 }
                 if (keyBuffer.length > 0) {
-                    console.log(keyBuffer);
                     packet["command"] = "sendInput";
                     packet["buttons"] = keyBuffer;
+                    console.log(keyBuffer);
                     socket.send(JSON.stringify(packet))
+                    keyBuffer = [];
                     packet["command"] = "getFrame";
                     delete packet["buttons"];
                 }

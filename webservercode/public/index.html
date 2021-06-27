@@ -1,13 +1,20 @@
 <!DOCTYPE html>
     <head>
         <title>GameBoy</title>
+        <link rel="stylesheet" href="css/stylesheet.css">
         <script src="js/pako.js"></script>
         <script src="js/gameboy.js"></script>
     </head>
-    <body onload="getScreen();">
-        <p>Hi</p>
-        <canvas id="gameboyScreen" width="160" height="144" style="border:1px solid #000000;"></canvas>
-        <button type="button" onclick="killConnection();">Stop</button>
-        <button type="button" onclick="pressStart();">Start</button>
+    <body onload="getRoms();">
+        <div id="romDropdown">
+            <label for="roms" >Choose a rom:</label>
+            <select name="roms" id="roms">
+            </select>
+            <button type="button" onclick="startGameBoy();">Start</button>
+        </div>
+        <div id="gameBoyCanvas" hidden>
+            <canvas id="gameboyScreen" width="160" height="144" style="border:1px solid #000000;"></canvas>
+            <button type="button" onclick="killConnection();">Stop</button>
+        </div>
     </body>
 </html>

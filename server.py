@@ -1,4 +1,4 @@
-import asyncio, websockets, threading, json, hashlib, random, string, time, math
+import asyncio, websockets, json, hashlib, random, string, time, math, os
 import pyboy
 from pyboy import PyBoy, WindowEvent
 import numpy as np
@@ -29,8 +29,6 @@ buttons = {
     "RIGHT_RELEASE": WindowEvent.RELEASE_ARROW_RIGHT
 }
 
-filename = "testroms/pokemongold.gbc"
-
 async def invalidRequest(websocket):
     await websocket.send("Invalid Request")
 
@@ -58,11 +56,23 @@ async def runCommand(websocket, cmd):
         screens.pop(cmd["authentication"])
         deAuthKey(cmd["authentication"])
         await websocket.send("Key Invalidated")
+    elif cmd["command"] == "getRoms":
+        path = "roms"
+        files = os.listdir(path)
+        roms = []
+        for f in files:
+            if f.endswith(".gbc"):
+                roms.append(f[:-4])
+        await websocket.send(json.dumps(roms))
     elif cmd["command"] == "start":
-        pyboys[cmd["authentication"]] = PyBoy(filename, window_type="headless", disable_renderer=True)
-        pyboys[cmd["authentication"]].set_emulation_speed(1)
-        screens[cmd["authentication"]] = pyboys[cmd["authentication"]].botsupport_manager().screen()
-        await websocket.send("PyBoy Instance Created")
+        filename = "roms/" + cmd["rom"] + ".gbc"
+        if os.path.isfile(filename):
+            pyboys[cmd["authentication"]] = PyBoy(filename, window_type="headless", disable_renderer=True)
+            pyboys[cmd["authentication"]].set_emulation_speed(1)
+            screens[cmd["authentication"]] = pyboys[cmd["authentication"]].botsupport_manager().screen()
+            await websocket.send("PyBoy Instance Created")
+        else:
+            await invalidRequest(websocket);
     elif cmd["command"] == "getFrame":
         pyboys[cmd["authentication"]].tick()
         image = screens[cmd["authentication"]].screen_ndarray()
@@ -85,9 +95,6 @@ async def server(websocket, path):
             if request["command"] == "close":
                 valid = True
                 if len(request["authentication"]) > 0:
-                    pyboys[request["authentication"]].stop()
-                    pyboys.pop(request["authentication"])
-                    screens.pop(request["authentication"])
                     deAuthKey(request["authentication"])
                 break
             #authenticate commands do not require a valid key

@@ -1,3 +1,4 @@
 testroms/*
 *.ipynb
 webservercode/node_modules/*
+roms/*
