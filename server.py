@@ -45,9 +45,8 @@ async def generateKey(websocket, requestPassphrase):
         await invalidRequest(websocket)
 
 def deAuthKey(key):
-    for i in validkeys:
-        if i == key:
-            validkeys.remove(key)
+    if key in validkeys:
+        validkeys.remove(key)
 
 async def runCommand(websocket, cmd):
     if cmd["command"] == "stop":
@@ -94,7 +93,7 @@ async def server(websocket, path):
             #if client requests to close the connection, break the loop
             if request["command"] == "close":
                 valid = True
-                if len(request["authentication"]) > 0:
+                if request["authentication"]:
                     deAuthKey(request["authentication"])
                 break
             #authenticate commands do not require a valid key
