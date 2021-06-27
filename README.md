@@ -10,3 +10,6 @@ The python side of the project has 2 dependencies: websockets and pyboy. The nod
 To use the server simply place a gameboy rom in a folder titled roms in the same folder as the server code then run the server and the node server (you will need to know
 the server password to authenticate but that can be set in server.py".
 Ignore client.py and pyboyTest.py these are just for testing and debug purposes.
+
+### Note
+I do not supply any gameboy roms.
